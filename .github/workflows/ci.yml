@@ -30,10 +30,13 @@ jobs:
                       contracts/target/
                   key: ${{ runner.os }}-cargo-${{ hashFiles('contracts/Cargo.lock') }}
 
+            - name: Install rustfmt and clippy
+              run: rustup component add rustfmt clippy
+
             - name: Install System Dependencies
               run: |
                   sudo apt-get update
-                  sudo apt-get install -y libdbus-1-dev pkg-config libudev-dev
+                  sudo apt-get install -y libdbus-1-dev pkg-config libudev-dev binaryen
 
             - name: Install Soroban CLI
               run: |
@@ -41,15 +44,28 @@ jobs:
                     cargo install --locked soroban-cli
                   fi
 
+            - name: Check formatting
+              run: |
+                  cd contracts
+                  cargo fmt --check
+
+            - name: Clippy (zero warnings)
+              run: |
+                  cd contracts
+                  cargo clippy -- -D warnings
+
             - name: Contract Compilation
               run: |
                   cd contracts
                   cargo build --target wasm32-unknown-unknown --release
 
+            - name: Optimize and check WASM binary sizes
+              run: make check-size
+
             - name: Contract Tests
               run: |
                   cd contracts
-                  cargo test
+                  cargo test --workspace
 
             - name: Install cargo-llvm-cov
               run: cargo install cargo-llvm-cov
